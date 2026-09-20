@@ -1,0 +1,6 @@
+groq
+httpx
+pydantic
+pydantic-settings
+python-dotenv
+pytest

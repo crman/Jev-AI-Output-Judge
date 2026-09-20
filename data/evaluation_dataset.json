@@ -1,0 +1,116 @@
+{
+  "dataset_name": "jevjudge_rag_evaluation",
+  "version": "1.0.0",
+  "examples": [
+    {
+      "id": "rag_001",
+      "question": "What is the company's refund period?",
+      "context": "Customers can request a refund within 30 days of purchase.",
+      "answer": "Customers can request a refund within 30 days of purchase.",
+      "ground_truth": {
+        "contradiction": false,
+        "unsupported_claim": false
+      },
+      "category": "fully_supported"
+    },
+    {
+      "id": "rag_002",
+      "question": "What is the company's refund period?",
+      "context": "Customers can request a refund within 30 days of purchase.",
+      "answer": "Customers can request a refund within 60 days of purchase.",
+      "ground_truth": {
+        "contradiction": true,
+        "unsupported_claim": true
+      },
+      "category": "contradiction"
+    },
+    {
+      "id": "rag_003",
+      "question": "Does the company offer free delivery?",
+      "context": "The company offers standard delivery within 3 to 5 business days.",
+      "answer": "The company offers free delivery on all orders.",
+      "ground_truth": {
+        "contradiction": false,
+        "unsupported_claim": true
+      },
+      "category": "unsupported_claim"
+    },
+    {
+      "id": "rag_004",
+      "question": "How long does standard delivery take?",
+      "context": "Standard delivery takes 3 to 5 business days.",
+      "answer": "Standard delivery takes 3 to 5 business days. Express delivery takes 1 day.",
+      "ground_truth": {
+        "contradiction": false,
+        "unsupported_claim": true
+      },
+      "category": "partially_supported"
+    },
+    {
+      "id": "rag_005",
+      "question": "What is the annual leave allowance?",
+      "context": "Full-time employees receive 25 days of annual leave, excluding public holidays.",
+      "answer": "Full-time employees receive 20 days of annual leave.",
+      "ground_truth": {
+        "contradiction": true,
+        "unsupported_claim": true
+      },
+      "category": "contradiction"
+    },
+    {
+      "id": "rag_006",
+      "question": "Where is the company's headquarters?",
+      "context": "The company was founded in London in 2010.",
+      "answer": "The company's headquarters are in London.",
+      "ground_truth": {
+        "contradiction": false,
+        "unsupported_claim": true
+      },
+      "category": "unsupported_claim"
+    },
+    {
+      "id": "rag_007",
+      "question": "What payment methods are accepted?",
+      "context": "The company accepts Visa and Mastercard credit and debit cards.",
+      "answer": "The company accepts Visa and Mastercard.",
+      "ground_truth": {
+        "contradiction": false,
+        "unsupported_claim": false
+      },
+      "category": "fully_supported"
+    },
+    {
+      "id": "rag_008",
+      "question": "Can customers return opened products?",
+      "context": "Products must be unopened and returned within 14 days.",
+      "answer": "Customers can return opened products within 14 days.",
+      "ground_truth": {
+        "contradiction": true,
+        "unsupported_claim": true
+      },
+      "category": "contradiction"
+    },
+    {
+      "id": "rag_009",
+      "question": "What is the customer support email?",
+      "context": "Customer support is available Monday to Friday, 9 AM to 5 PM.",
+      "answer": "You can contact support at support@example.com.",
+      "ground_truth": {
+        "contradiction": false,
+        "unsupported_claim": true
+      },
+      "category": "unsupported_claim"
+    },
+    {
+      "id": "rag_010",
+      "question": "When was the company founded?",
+      "context": "The company was founded in 2015.",
+      "answer": "The company was established in 2018.",
+      "ground_truth": {
+        "contradiction": true,
+        "unsupported_claim": true
+      },
+      "category": "contradiction"
+    }
+  ]
+}

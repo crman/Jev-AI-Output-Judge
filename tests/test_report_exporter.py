@@ -1,6 +1,10 @@
+import csv
 import json
 
-from app.evaluation.report_exporter import export_report_to_json
+from app.evaluation.report_exporter import (
+    export_report_to_csv,
+    export_report_to_json,
+)
 from app.schemas.evaluation_report import EvaluationReport
 from app.schemas.evaluation_result import (
     EvaluationResult,
@@ -78,6 +82,53 @@ def test_export_report_creates_parent_directory(tmp_path):
     )
 
     export_report_to_json(
+        report,
+        output_path,
+    )
+
+    assert output_path.exists()
+    
+def test_export_report_to_csv(tmp_path):
+    report = make_report()
+
+    output_path = tmp_path / "report.csv"
+
+    returned_path = export_report_to_csv(
+        report,
+        output_path,
+    )
+
+    assert returned_path == output_path
+    assert output_path.exists()
+
+    with output_path.open(
+        "r",
+        newline="",
+        encoding="utf-8",
+    ) as file:
+        rows = list(csv.DictReader(file))
+
+    assert len(rows) == 1
+
+    row = rows[0]
+
+    assert row["example_id"] == "rag_001"
+    assert row["judge"] == "groq"
+    assert row["model"] == "test-model"
+    assert row["verdict"] == "supported"
+    assert row["raw_output"] == '{"verdict": "supported"}'
+    
+def test_export_report_to_csv_creates_parent_directory(tmp_path):
+    report = make_report()
+
+    output_path = (
+        tmp_path
+        / "nested"
+        / "reports"
+        / "report.csv"
+    )
+
+    export_report_to_csv(
         report,
         output_path,
     )

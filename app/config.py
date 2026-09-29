@@ -4,6 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     typesafe_api_key: str = ""
     jev_model: str = "jev-latest"
+    jev_support_threshold: float | None = None
 
     groq_api_key: str = ""
     groq_model: str = ""

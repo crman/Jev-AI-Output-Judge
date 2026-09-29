@@ -94,6 +94,7 @@ def normalize_groq_response(
 def normalize_jev_response(
     example_id: str,
     raw_output: dict[str, Any],
+    support_threshold: float | None = None,
 ) -> EvaluationResult:
     """
     Normalize a Jev API response into the common EvaluationResult schema.
@@ -139,16 +140,40 @@ def normalize_jev_response(
 
     usage = raw_output.get("usage")
 
+    verdict = EvaluationVerdict.UNCERTAIN
+    explanation = (
+        "Jev returned an hq_supported noul signal. "
+        "No verdict threshold has been configured."
+    )
+
+    if support_threshold is not None:
+        if not 0.0 <= support_threshold <= 1.0:
+            raise JudgeNormalizationError(
+                "Jev support threshold must be between 0 and 1."
+            )
+
+        if noul_value >= support_threshold:
+            verdict = EvaluationVerdict.SUPPORTED
+            explanation = (
+                f"Jev hq_supported noul={noul_value:.4f} "
+                f"meets the configured support threshold "
+                f"of {support_threshold:.4f}."
+            )
+        else:
+            verdict = EvaluationVerdict.INSUFFICIENT_EVIDENCE
+            explanation = (
+                f"Jev hq_supported noul={noul_value:.4f} "
+                f"is below the configured support threshold "
+                f"of {support_threshold:.4f}."
+            )
+
     return EvaluationResult(
         example_id=example_id,
         judge=JudgeType.JEV,
         model=model,
-        verdict=EvaluationVerdict.UNCERTAIN,
+        verdict=verdict,
         confidence=None,
-        explanation=(
-            "Jev returned an hq_supported noul signal. "
-            "No verdict threshold has been configured."
-        ),
+        explanation=explanation,
         raw_output=raw_output,
         usage=usage if isinstance(usage, dict) else None,
     )

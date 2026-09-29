@@ -130,3 +130,88 @@ def test_normalize_jev_invalid_noul(noul):
             example_id="rag_001",
             raw_output=raw_output,
         )
+        
+def test_normalize_jev_with_support_threshold_returns_supported():
+    raw_output = {
+        "model": "jev-1.13.0",
+        "answers": {
+            "hq_supported": {
+                "type": "noul",
+                "noul": 0.90,
+            }
+        },
+    }
+
+    result = normalize_jev_response(
+        example_id="rag_001",
+        raw_output=raw_output,
+        support_threshold=0.50,
+    )
+
+    assert result.verdict == EvaluationVerdict.SUPPORTED
+    assert result.example_id == "rag_001"
+
+
+def test_normalize_jev_with_support_threshold_returns_insufficient_evidence():
+    raw_output = {
+        "model": "jev-1.13.0",
+        "answers": {
+            "hq_supported": {
+                "type": "noul",
+                "noul": 0.20,
+            }
+        },
+    }
+
+    result = normalize_jev_response(
+        example_id="rag_002",
+        raw_output=raw_output,
+        support_threshold=0.50,
+    )
+
+    assert result.verdict == EvaluationVerdict.INSUFFICIENT_EVIDENCE
+
+
+def test_normalize_jev_without_threshold_returns_uncertain():
+    raw_output = {
+        "model": "jev-1.13.0",
+        "answers": {
+            "hq_supported": {
+                "type": "noul",
+                "noul": 0.90,
+            }
+        },
+    }
+
+    result = normalize_jev_response(
+        example_id="rag_001",
+        raw_output=raw_output,
+    )
+
+    assert result.verdict == EvaluationVerdict.UNCERTAIN
+
+
+@pytest.mark.parametrize(
+    "threshold",
+    [-0.1, 1.1],
+)
+def test_normalize_jev_rejects_invalid_support_threshold(threshold):
+    raw_output = {
+        "model": "jev-1.13.0",
+        "answers": {
+            "hq_supported": {
+                "type": "noul",
+                "noul": 0.50,
+            }
+        },
+    }
+
+    with pytest.raises(
+        JudgeNormalizationError,
+        match="support threshold must be between 0 and 1",
+    ):
+        normalize_jev_response(
+            example_id="rag_001",
+            raw_output=raw_output,
+            support_threshold=threshold,
+        )

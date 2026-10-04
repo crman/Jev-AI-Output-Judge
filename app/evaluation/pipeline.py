@@ -1,17 +1,17 @@
+from collections.abc import Callable, Iterable
+from pathlib import Path
+
 from app.clients.groq_client import GroqClient
 from app.clients.jev_client import JevClient
+from app.evaluation.dataset_loader import load_dataset
 from app.evaluation.judge_normalizer import (
     normalize_groq_response,
     normalize_jev_response,
 )
-from app.schemas.evaluation_result import EvaluationResult, JudgeType
-from collections.abc import Callable, Iterable
-
-from app.schemas.evaluation import EvaluationExample
 from app.evaluation.prompt_builder import build_groq_prompts
-from pathlib import Path
+from app.schemas.evaluation import EvaluationExample
+from app.schemas.evaluation_result import EvaluationResult, JudgeType
 
-from app.evaluation.dataset_loader import load_dataset
 
 def evaluate_groq_example(
     client: GroqClient,
@@ -20,8 +20,6 @@ def evaluate_groq_example(
     system_prompt: str,
     user_prompt: str,
 ) -> EvaluationResult:
-    """Evaluate a single example using Groq and normalize its response."""
-
     raw_output = client.generate(
         system_prompt=system_prompt,
         user_prompt=user_prompt,
@@ -39,9 +37,8 @@ def evaluate_jev_example(
     example_id: str,
     state: str | dict | list,
     questions: dict,
+    support_threshold: float | None = None,
 ) -> EvaluationResult:
-    """Evaluate a single example using Jev and normalize its response."""
-
     raw_output = client.evaluate(
         state=state,
         questions=questions,
@@ -50,9 +47,8 @@ def evaluate_jev_example(
     return normalize_jev_response(
         example_id=example_id,
         raw_output=raw_output,
+        support_threshold=support_threshold,
     )
-    
-
 
 
 def evaluate_example(
@@ -65,16 +61,9 @@ def evaluate_example(
     user_prompt: str | None = None,
     state: str | dict | list | None = None,
     questions: dict | None = None,
+    support_threshold: float | None = None,
 ) -> EvaluationResult:
-    """
-    Evaluate one example using the selected judge.
-
-    Groq requires system_prompt, user_prompt, and model.
-    Jev requires state and questions.
-    """
-
     if judge == JudgeType.GROQ:
-
         if not model or not system_prompt or not user_prompt:
             raise ValueError(
                 "Groq evaluation requires model, system_prompt, "
@@ -90,7 +79,6 @@ def evaluate_example(
         )
 
     if judge == JudgeType.JEV:
-
         if state is None or questions is None:
             raise ValueError(
                 "Jev evaluation requires state and questions."
@@ -101,6 +89,7 @@ def evaluate_example(
             example_id=example_id,
             state=state,
             questions=questions,
+            support_threshold=support_threshold,
         )
 
     raise ValueError(f"Unsupported judge: {judge}")
@@ -110,21 +99,13 @@ def evaluate_dataset(
     examples: Iterable[EvaluationExample],
     evaluator: Callable[[EvaluationExample], EvaluationResult],
 ) -> dict:
-    """
-    Evaluate a dataset using the supplied single-example evaluator.
-
-    Each example is processed independently. Failures are recorded
-    without stopping the remaining batch.
-    """
-
-    results: list[EvaluationResult] = []
-    errors: list[dict[str, str]] = []
+    results = []
+    errors = []
 
     for example in examples:
         try:
             result = evaluator(example)
             results.append(result)
-
         except Exception as exc:
             errors.append(
                 {
@@ -141,20 +122,13 @@ def evaluate_dataset(
         "results": results,
         "errors": errors,
     }
-    
+
 
 def evaluate_groq_dataset(
     examples: Iterable[EvaluationExample],
     client: GroqClient,
     model: str,
 ) -> dict:
-    """
-    Evaluate a dataset using Groq.
-
-    Builds prompts for each example, evaluates it, and collects
-    normalized results while recording individual failures.
-    """
-
     def evaluator(example: EvaluationExample) -> EvaluationResult:
         system_prompt, user_prompt = build_groq_prompts(example)
 
@@ -170,19 +144,14 @@ def evaluate_groq_dataset(
         examples=examples,
         evaluator=evaluator,
     )
-    
+
 
 def evaluate_jev_dataset(
     examples: Iterable[EvaluationExample],
     client: JevClient,
     questions: dict,
+    support_threshold: float | None = None,
 ) -> dict:
-    """
-    Evaluate a dataset using Jev.
-
-    Ground-truth labels are intentionally excluded from Jev's state.
-    """
-
     def evaluator(example: EvaluationExample) -> EvaluationResult:
         state = {
             "question": example.question,
@@ -195,13 +164,14 @@ def evaluate_jev_dataset(
             example_id=example.id,
             state=state,
             questions=questions,
+            support_threshold=support_threshold,
         )
 
     return evaluate_dataset(
         examples=examples,
         evaluator=evaluator,
     )
-    
+
 
 def run_dataset_evaluation(
     dataset_path: str | Path,
@@ -210,11 +180,8 @@ def run_dataset_evaluation(
     *,
     model: str | None = None,
     questions: dict | None = None,
+    support_threshold: float | None = None,
 ) -> dict:
-    """
-    Load a dataset and evaluate it using the selected judge.
-    """
-
     dataset = load_dataset(dataset_path)
 
     if judge == JudgeType.GROQ:
@@ -235,10 +202,18 @@ def run_dataset_evaluation(
                 "Questions must be provided for Jev evaluation."
             )
 
+        if support_threshold is None:
+            return evaluate_jev_dataset(
+                examples=dataset.examples,
+                client=client,
+                questions=questions,
+            )
+
         return evaluate_jev_dataset(
             examples=dataset.examples,
             client=client,
             questions=questions,
+            support_threshold=support_threshold,
         )
 
     raise ValueError(f"Unsupported judge: {judge}")

@@ -535,3 +535,4 @@ All tests use mocking (`monkeypatch`, `unittest.mock`) where live API calls woul
 | 11 | CLI: added `--judge both` mode; refactored evaluation helpers; `report_exporter` extended to accept `ComparisonReport`; full test coverage for both phases | 2026-11-26 |
 | 12 | Phase 12: removed unreachable `return` in `export_comparison_to_csv`; added this walkthrough document | 2026-11-26 |
 | 13 | Phase 13: added module-level methodology note to `judge_normalizer.py` distinguishing raw signal, project threshold, and normalized verdict; expanded threshold comments in `config.py`; updated walkthrough | 2026-11-26 |
+| 14 | Code quality: removed duplicate `run_cli()` call in `cli.py`; normalised UTC import order in `evaluation_report.py` | 2026-11-26 |

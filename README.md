@@ -11,6 +11,44 @@ JevJudge is a Python-based CLI evaluation framework for RAG-generated answers. I
 
 ---
 
+## Evaluation methodology and scoring
+
+### How the judges evaluate responses
+
+Rather than using vector similarity search (which measures topical proximity but cannot distinguish factual contradictions from faithful claims), both judges evaluate logical faithfulness directly against the source context:
+
+1. **Jev (Continuous signal evaluation)**
+   - Submits structured evaluation state (`question`, `context`, `answer`) to TypeSafe's Jev API with the `hq_supported` question ("Is the answer supported by the provided context?").
+   - Receives a continuous numeric score (`noul`) between 0.0 and 1.0.
+   - Applies a configurable threshold (`JEV_SUPPORT_THRESHOLD`, default: 0.5):
+     - `noul >= threshold` maps to `supported`
+     - `noul < threshold` maps to `insufficient_evidence`
+     - Without a threshold configured, results default to `uncertain`
+
+2. **Groq (Prompted LLM-as-a-judge)**
+   - Sends the question, context, and answer to a hosted LLM (`openai/gpt-oss-120b`) via the Groq API.
+   - Uses zero-shot prompt instructions enforcing an impartial evaluation persona.
+   - Instructs the model to reason about factual alignment and return structured JSON containing one of four verdicts (`supported`, `contradicted`, `insufficient_evidence`, `uncertain`) and a natural language explanation.
+
+### How accuracy and metrics are measured
+
+Both judges produce normalized verdicts that are quantitatively evaluated against human-labelled ground truth:
+
+1. **Verdict to label mapping**
+   - `supported` maps to `contradiction = False`, `unsupported_claim = False`
+   - `contradicted` maps to `contradiction = True`, `unsupported_claim = False`
+   - `insufficient_evidence` maps to `contradiction = False`, `unsupported_claim = True`
+   - `uncertain` verdicts are excluded from metric calculations to avoid biased assumptions and are tracked in `skipped_count`.
+
+2. **Classification metrics**
+   For both `contradiction` detection and `unsupported_claim` detection, the metrics engine computes standard classification metrics:
+   - **Accuracy**: Proportion of correct predictions out of all evaluated examples.
+   - **Precision**: True Positives / (True Positives + False Positives).
+   - **Recall**: True Positives / (True Positives + False Negatives).
+   - **F1 Score**: Harmonic mean of Precision and Recall (`2 * Precision * Recall / (Precision + Recall)`).
+
+---
+
 ## What it does
 
 - Evaluates RAG answers for faithfulness to source context.

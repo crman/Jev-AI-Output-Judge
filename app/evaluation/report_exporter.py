@@ -2,15 +2,16 @@ import csv
 import json
 from pathlib import Path
 
+from app.schemas.comparison_report import ComparisonReport
 from app.schemas.evaluation_report import EvaluationReport
 
 
 def export_report_to_json(
-    report: EvaluationReport,
+    report: EvaluationReport | ComparisonReport,
     output_path: str | Path,
 ) -> Path:
     """
-    Export an evaluation report to a JSON file.
+    Export an evaluation or comparison report to a JSON file.
 
     Returns:
         Path to the created report file.
@@ -33,16 +34,25 @@ def export_report_to_json(
     return output_path
 
 
-def export_report_to_csv(
-    report: EvaluationReport,
+def export_comparison_to_json(
+    report: ComparisonReport,
     output_path: str | Path,
 ) -> Path:
     """
-    Export evaluation results to a CSV file.
+    Export a comparison report to a JSON file.
+    """
+    return export_report_to_json(report, output_path)
+
+
+def export_report_to_csv(
+    report: EvaluationReport | ComparisonReport,
+    output_path: str | Path,
+) -> Path:
+    """
+    Export evaluation or comparison results to a CSV file.
 
     Each row represents one evaluation result.
     """
-
     output_path = Path(output_path)
 
     output_path.parent.mkdir(
@@ -60,6 +70,13 @@ def export_report_to_csv(
         "raw_output",
     ]
 
+    results = []
+    if isinstance(report, ComparisonReport):
+        for sub_report in report.reports:
+            results.extend(sub_report.results)
+    else:
+        results = report.results
+
     with output_path.open(
         "w",
         newline="",
@@ -72,7 +89,7 @@ def export_report_to_csv(
 
         writer.writeheader()
 
-        for result in report.results:
+        for result in results:
             writer.writerow(
                 {
                     "example_id": result.example_id,
@@ -85,4 +102,15 @@ def export_report_to_csv(
                 }
             )
 
+    return output_path
+
+
+def export_comparison_to_csv(
+    report: ComparisonReport,
+    output_path: str | Path,
+) -> Path:
+    """
+    Export a comparison report's evaluation results to a CSV file.
+    """
+    return export_report_to_csv(report, output_path)
     return output_path

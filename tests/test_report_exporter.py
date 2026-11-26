@@ -2,9 +2,12 @@ import csv
 import json
 
 from app.evaluation.report_exporter import (
+    export_comparison_to_csv,
+    export_comparison_to_json,
     export_report_to_csv,
     export_report_to_json,
 )
+from app.schemas.comparison_report import ComparisonReport
 from app.schemas.evaluation_report import EvaluationReport
 from app.schemas.evaluation_result import (
     EvaluationResult,
@@ -134,3 +137,98 @@ def test_export_report_to_csv_creates_parent_directory(tmp_path):
     )
 
     assert output_path.exists()
+
+
+def test_export_comparison_to_json(tmp_path):
+    groq_report = make_report()
+    jev_result = EvaluationResult(
+        example_id="rag_001",
+        judge=JudgeType.JEV,
+        model="jev-1.13.0",
+        verdict=EvaluationVerdict.SUPPORTED,
+        raw_output={"model": "jev-1.13.0"},
+    )
+    jev_report = EvaluationReport(
+        report_id="report_002",
+        dataset_name="test_dataset",
+        dataset_version="1.0",
+        judge=JudgeType.JEV,
+        model="jev-1.13.0",
+        results=[jev_result],
+        metrics={
+            "contradiction": {
+                "accuracy": 1.0,
+                "precision": 1.0,
+                "recall": 1.0,
+                "f1": 1.0,
+            }
+        },
+        evaluated_count=1,
+        skipped_count=0,
+    )
+    comparison = ComparisonReport(
+        comparison_id="comp_001",
+        dataset_name="test_dataset",
+        dataset_version="1.0",
+        reports=[groq_report, jev_report],
+    )
+
+    output_path = tmp_path / "comparison.json"
+    returned_path = export_comparison_to_json(comparison, output_path)
+
+    assert returned_path == output_path
+    assert output_path.exists()
+
+    data = json.loads(output_path.read_text(encoding="utf-8"))
+    assert data["comparison_id"] == "comp_001"
+    assert len(data["reports"]) == 2
+    assert data["reports"][0]["judge"] == "groq"
+    assert data["reports"][1]["judge"] == "jev"
+
+
+def test_export_comparison_to_csv(tmp_path):
+    groq_report = make_report()
+    jev_result = EvaluationResult(
+        example_id="rag_001",
+        judge=JudgeType.JEV,
+        model="jev-1.13.0",
+        verdict=EvaluationVerdict.SUPPORTED,
+        raw_output="raw",
+    )
+    jev_report = EvaluationReport(
+        report_id="report_002",
+        dataset_name="test_dataset",
+        dataset_version="1.0",
+        judge=JudgeType.JEV,
+        model="jev-1.13.0",
+        results=[jev_result],
+        metrics={
+            "contradiction": {
+                "accuracy": 1.0,
+                "precision": 1.0,
+                "recall": 1.0,
+                "f1": 1.0,
+            }
+        },
+        evaluated_count=1,
+        skipped_count=0,
+    )
+    comparison = ComparisonReport(
+        comparison_id="comp_001",
+        dataset_name="test_dataset",
+        dataset_version="1.0",
+        reports=[groq_report, jev_report],
+    )
+
+    output_path = tmp_path / "comparison.csv"
+    returned_path = export_comparison_to_csv(comparison, output_path)
+
+    assert returned_path == output_path
+    assert output_path.exists()
+
+    with output_path.open("r", encoding="utf-8") as file:
+        rows = list(csv.DictReader(file))
+
+    assert len(rows) == 2
+    assert rows[0]["judge"] == "groq"
+    assert rows[1]["judge"] == "jev"

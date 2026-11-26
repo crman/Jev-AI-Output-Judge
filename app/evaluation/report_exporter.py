@@ -113,4 +113,3 @@ def export_comparison_to_csv(
     Export a comparison report's evaluation results to a CSV file.
     """
     return export_report_to_csv(report, output_path)
-    return output_path

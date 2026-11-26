@@ -279,7 +279,19 @@ Steps:
    - `noul >= threshold` → `SUPPORTED`.
    - `noul < threshold` → `INSUFFICIENT_EVIDENCE`.
 
-> **Important:** Jev's question only evaluates *support*. A low support score means the answer is not well-supported by the context — it does not definitively mean the answer *contradicts* the context. The `CONTRADICTED` verdict is never assigned by the Jev normalizer. Only Groq can produce it.
+#### Jev threshold methodology
+
+Three concepts are kept distinct throughout the codebase:
+
+| Concept | What it is |
+|---|---|
+| **Raw Jev signal** | The `noul` value returned by the Jev API — always preserved in `raw_output` |
+| **Project threshold** | The configurable `JEV_SUPPORT_THRESHOLD` — a project-defined decision boundary, not provided or validated by TypeSafe |
+| **Normalized verdict** | The `EvaluationVerdict` the framework assigns using the threshold — the framework's interpretation, not an independent Jev judgment |
+
+> **Important:** Jev's question only evaluates *support*. A low support score means the answer is not well-supported by the context — it does not mean the answer *contradicts* the context. The `CONTRADICTED` verdict is never assigned by the Jev normalizer. Only Groq can produce it.
+
+> **Calibration note:** The threshold used in this project is exploratory and has not been independently validated on a held-out calibration dataset. If this framework is used in production, the threshold should be calibrated against a labelled dataset that is separate from the evaluation dataset.
 
 ### 6.5 `pipeline.py`
 
@@ -521,4 +533,5 @@ All tests use mocking (`monkeypatch`, `unittest.mock`) where live API calls woul
 | 1–9 | Core architecture: config, clients, dataset, pipeline, normalizers, metrics, schemas, report builder/exporter, CLI (single-judge) | Before roadmap |
 | 10 | CLI: wired `--output` and `--format` to report exporters for single-judge runs | 2026-11-26 |
 | 11 | CLI: added `--judge both` mode; refactored evaluation helpers; `report_exporter` extended to accept `ComparisonReport`; full test coverage for both phases | 2026-11-26 |
-| 12 | *In progress — metrics and report validation* | — |
+| 12 | Phase 12: removed unreachable `return` in `export_comparison_to_csv`; added this walkthrough document | 2026-11-26 |
+| 13 | Phase 13: added module-level methodology note to `judge_normalizer.py` distinguishing raw signal, project threshold, and normalized verdict; expanded threshold comments in `config.py`; updated walkthrough | 2026-11-26 |

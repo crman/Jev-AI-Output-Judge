@@ -1,3 +1,48 @@
+"""
+Judge response normalization.
+
+This module converts raw provider responses into the common EvaluationResult
+schema. Each normalizer is responsible for one provider only.
+
+--- Jev threshold methodology ---
+
+Jev returns a continuous numeric signal called ``noul`` (via the hq_supported
+question). This signal represents how well an answer is supported by the
+provided context, on a scale of 0.0 to 1.0.
+
+Three concepts must be kept distinct:
+
+1. **Raw Jev signal** — the ``noul`` value returned directly by the Jev API.
+   This is the ground truth from the provider and is always preserved in
+   ``EvaluationResult.raw_output``.
+
+2. **Project threshold** — the configurable ``JEV_SUPPORT_THRESHOLD`` value
+   set in the environment. This is a project-defined decision boundary, not a
+   value provided or validated by TypeSafe. It determines where the framework
+   draws the line between "supported" and "insufficient evidence".
+
+3. **Normalized verdict** — the ``EvaluationVerdict`` that the framework
+   assigns using the threshold. This is the framework's interpretation of the
+   signal, not an independent judgment from Jev.
+
+Mapping rules applied by this framework:
+- ``noul >= threshold``  →  SUPPORTED
+- ``noul < threshold``   →  INSUFFICIENT_EVIDENCE
+- No threshold set       →  UNCERTAIN
+
+Important: Jev's hq_supported question evaluates *support*, not contradiction.
+A low support score means the answer is not well-supported by the context.
+It does not mean the answer contradicts the context. For that reason, the Jev
+normalizer never assigns a CONTRADICTED verdict. Only the Groq normalizer can
+produce CONTRADICTED verdicts, because the Groq prompt explicitly asks the
+model to distinguish between contradictions and unsupported claims.
+
+The threshold used in this project is exploratory and has not been
+independently validated on a held-out calibration dataset. If you use this
+framework in production, you should calibrate the threshold against a
+labelled dataset that is separate from the evaluation dataset.
+"""
+
 import json
 import re
 from math import isfinite

@@ -64,8 +64,7 @@ data/
 results/                        # Generated report files (gitignored)
 tests/                          # Unit tests
 docs/
-├── JevJudge_Code_Walkthrough.md
-└── JevJudge_Development_Roadmap.md
+└── JevJudge_Code_Walkthrough.md
 ```
 
 ---
@@ -241,4 +240,3 @@ Running both judges against the evaluation dataset highlights key architectural 
 ## Docs
 
 - [Code Walkthrough](docs/JevJudge_Code_Walkthrough.md) — module-by-module explanation of the codebase
-- [Development Roadmap](docs/JevJudge_Development_Roadmap.md) — the development plan used to build this project

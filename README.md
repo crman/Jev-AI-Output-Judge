@@ -1,312 +1,82 @@
-# JevJudge — AI Response Evaluation & Hallucination Detection
+# JevJudge — AI Response Evaluation Framework
 
-> A hands-on AI engineering project exploring Jev and LLM-based judges for evaluating the quality, faithfulness, and reliability of generated responses.
-
-**JevJudge** is an evaluation framework for testing LLM-generated responses against source context and ground-truth labels.
-
-The project currently evaluates responses using two judge approaches:
-
-- **[Jev](https://typesafe.ai/)** — a structured decision-making model accessed through the Jev API
-- **[Groq](https://groq.com/)** — an LLM inference platform used to run a conventional LLM-based evaluation judge
-
-The goal is to investigate how different judge approaches perform when evaluating responses generated from Retrieval-Augmented Generation (RAG) scenarios.
-
-The project is being built incrementally, with an emphasis on reproducible evaluation, clear separation between judge execution and metric calculation, and testable Python components.
+JevJudge is a Python-based CLI evaluation framework for RAG-generated answers. It evaluates AI-generated responses against reference context using two judges, normalizes their outputs into a common verdict schema, measures evaluation quality against labelled ground truth, and exports structured reports.
 
 ---
 
-## 🎯 Objectives
+## Judges
 
-* Explore Jev's structured decision-making capabilities.
-* Evaluate LLM-generated answers against source context.
-* Detect contradictions and unsupported claims.
-* Compare Jev with a Groq-hosted LLM judge.
-* Build a reproducible evaluation pipeline using Python.
-* Measure judge performance against ground-truth labels.
-* Handle uncertain evaluation results explicitly rather than silently treating them as correct or incorrect.
-* Build a reusable foundation for future benchmarking and reporting.
+- **Jev** — a TypeSafe-hosted evaluation model that returns a continuous numeric support signal (`noul`).
+- **Groq** — a Groq-hosted LLM used as a conventional judge with a structured prompt, returning a verdict and explanation.
 
 ---
 
-## 🏗️ Current Architecture
+## What it does
 
-```text
-                  Evaluation Dataset
-                         │
-                         ▼
-                 Dataset Loader
-                         │
-                         ▼
-                Evaluation Pipeline
-                         │
-              ┌──────────┴──────────┐
-              │                     │
-              ▼                     ▼
-         Groq Judge             Jev Judge
-              │                     │
-              ▼                     ▼
-       Response Normalization
-              │                     │
-              └──────────┬──────────┘
-                         │
-                         ▼
-                Evaluation Results
-                         │
-                         ▼
-                  Metrics Engine
-                         │
-              ┌──────────┴──────────┐
-              │                     │
-              ▼                     ▼
-        Groq Metrics            Jev Metrics
-              │                     │
-              └──────────┬──────────┘
-                         │
-                         ▼
-                 Comparison Data
+- Evaluates RAG answers for faithfulness to source context.
+- Detects unsupported claims and contradictions.
+- Normalizes provider-specific outputs into a common verdict schema.
+- Measures judge performance against labelled ground truth using binary classification metrics.
+- Compares the performance of different judges side by side.
+- Exports evaluation reports in JSON and CSV format.
+
+---
+
+## Verdicts
+
+| Verdict | Meaning |
+|---|---|
+| `supported` | The context supports the answer |
+| `contradicted` | The context contradicts the answer |
+| `insufficient_evidence` | The context does not provide enough information to evaluate the answer |
+| `uncertain` | The result cannot be determined confidently |
+
+---
+
+## Project structure
+
 ```
+app/
+├── clients/
+│   ├── groq_client.py          # Groq SDK wrapper
+│   └── jev_client.py           # TypeSafe Jev HTTP client
+├── evaluation/
+│   ├── dataset_loader.py       # Load and validate the JSON dataset
+│   ├── prompt_builder.py       # Build Groq system and user prompts
+│   ├── jev_questions.py        # Jev question definition
+│   ├── judge_normalizer.py     # Normalize raw judge responses
+│   ├── pipeline.py             # Per-example and per-dataset evaluation
+│   ├── metrics.py              # Binary classification metrics
+│   ├── report_builder.py       # Build evaluation reports
+│   ├── comparison_builder.py   # Build multi-judge comparison reports
+│   └── report_exporter.py      # Export reports to JSON or CSV
+├── schemas/
+│   ├── evaluation.py           # Dataset, example, and ground truth models
+│   ├── evaluation_result.py    # Verdict, judge type, and result models
+│   ├── evaluation_report.py    # Single-judge report model
+│   └── comparison_report.py    # Multi-judge comparison report model
+├── cli.py                      # CLI entry point
+└── config.py                   # Environment configuration
 
-The architecture intentionally separates:
+data/
+└── evaluation_dataset.json     # 10-example labelled evaluation dataset
 
-1. **Dataset loading**
-2. **Judge execution**
-3. **Result normalization**
-4. **Metric calculation**
-5. **Future reporting and benchmarking**
-
-This allows individual components to be tested independently.
-
----
-
-## 🛠️ Tech Stack
-
-| Component            | Technology         |
-| -------------------- | ------------------ |
-| Programming Language | Python             |
-| Decision Model       | Jev                |
-| LLM Provider         | Groq               |
-| API Integration      | Jev API / Groq SDK |
-| Data Validation      | Pydantic           |
-| Testing              | Pytest             |
-| Configuration        | Pydantic Settings  |
-| Version Control      | Git & GitHub       |
-
----
-
-## 🧪 Evaluation Dataset
-
-The project currently contains a small synthetic evaluation dataset designed around RAG-style response evaluation.
-
-Each example contains:
-
-* Question
-* Source context
-* Generated answer
-* Ground-truth labels
-* Evaluation category
-
-Example structure:
-
-```json
-{
-  "id": "rag_001",
-  "question": "What is the capital of France?",
-  "context": "Paris is the capital of France.",
-  "answer": "Paris is the capital of France.",
-  "ground_truth": {
-    "contradiction": false,
-    "unsupported_claim": false
-  },
-  "category": "factual"
-}
-```
-
-Ground-truth labels currently capture two independent properties:
-
-* `contradiction`
-* `unsupported_claim`
-
-The ground truth is used only for measuring judge performance and is not included in judge prompts.
-
----
-
-## ⚖️ Evaluation Verdicts
-
-The evaluation pipeline normalizes judge responses into a common set of verdicts:
-
-| Verdict                 | Meaning                                                             |
-| ----------------------- | ------------------------------------------------------------------- |
-| `supported`             | The answer is supported by the provided context.                    |
-| `contradicted`          | The answer conflicts with the provided context.                     |
-| `insufficient_evidence` | The context does not provide enough evidence to support the answer. |
-| `uncertain`             | The judge cannot produce a sufficiently confident evaluation.       |
-
-Both Jev and Groq results are converted into the common `EvaluationResult` schema.
-
-This provides a consistent representation regardless of which judge produced the result.
-
----
-
-## 🔄 Evaluation Pipeline
-
-The evaluation pipeline supports both single-example and dataset-level evaluation.
-
-### Single-example evaluation
-
-```text
-Question + Context + Answer
-            │
-            ▼
-       Selected Judge
-            │
-            ▼
-     Raw Judge Output
-            │
-            ▼
-    Result Normalization
-            │
-            ▼
-     EvaluationResult
-```
-
-### Dataset evaluation
-
-```text
-Evaluation Dataset
-        │
-        ▼
-   Dataset Loader
-        │
-        ▼
-   Selected Judge
-        │
-        ▼
-  Batch Evaluation
-        │
-        ├── Successful Results
-        │
-        └── Per-example Errors
-```
-
-The batch pipeline continues evaluating remaining examples when an individual example fails, allowing evaluation runs to produce partial results instead of terminating immediately.
-
----
-
-## 📐 Evaluation Metrics
-
-The project currently includes binary classification metrics for evaluating judge predictions against ground truth.
-
-### Metrics
-
-* Accuracy
-* Precision
-* Recall
-* F1 score
-
-### Confusion-matrix counts
-
-* True Positive
-* True Negative
-* False Positive
-* False Negative
-
-Metrics are calculated independently for:
-
-* `contradiction`
-* `unsupported_claim`
-
-### Uncertain results
-
-`UNCERTAIN` judge results are explicitly excluded from metric calculations rather than being automatically treated as negative predictions.
-
-The metrics also track:
-
-* `evaluated_count`
-* `skipped_count`
-
-This keeps the reported metrics transparent about how many results were actually evaluated.
-
----
-
-## 🔬 Judge Comparison
-
-The metrics layer supports calculating evaluation metrics independently for multiple judges.
-
-For example:
-
-```text
-                    Ground Truth
-                         │
-             ┌───────────┴───────────┐
-             │                       │
-             ▼                       ▼
-         Groq Judge              Jev Judge
-             │                       │
-             ▼                       ▼
-        Groq Metrics             Jev Metrics
-             │                       │
-             └───────────┬───────────┘
-                         │
-                         ▼
-                  Comparison Data
-```
-
-The current implementation reports metrics for each judge independently. It does not automatically rank or select a preferred judge.
-
----
-
-## 📂 Project Structure
-
-```text
-jev-ai-output-judge/
-│
-├── app/
-│   ├── clients/
-│   │   ├── groq_client.py
-│   │   └── jev_client.py
-│   │
-│   ├── evaluation/
-│   │   ├── dataset_loader.py
-│   │   ├── judge_normalizer.py
-│   │   ├── metrics.py
-│   │   ├── pipeline.py
-│   │   └── prompt_builder.py
-│   │
-│   ├── schemas/
-│   │   ├── evaluation.py
-│   │   └── evaluation_result.py
-│   │
-│   ├── config.py
-│   └── main.py
-│
-├── data/
-│   └── evaluation_dataset.json
-│
-├── tests/
-│   ├── test_dataset_loader.py
-│   ├── test_evaluation_pipeline.py
-│   ├── test_metrics.py
-│   ├── test_prompt_builder.py
-│   └── ...
-│
-├── results/
-├── docs/
-├── .env.example
-├── .gitignore
-├── requirements.txt
-└── README.md
+results/                        # Generated report files (gitignored)
+tests/                          # Unit tests
+docs/
+├── JevJudge_Code_Walkthrough.md
+└── JevJudge_Development_Roadmap.md
 ```
 
 ---
 
-## 🚀 Getting Started
+## Getting started
 
 ### Prerequisites
 
-* Python 3.11+
-* Git
-* A [Groq API key](https://console.groq.com/keys)
-* Jev API access for Jev evaluation
+- Python 3.11 or later
+- A [Groq API key](https://console.groq.com/keys)
+- A [TypeSafe API key](https://typesafe.ai/) for Jev
 
 ### 1. Clone the repository
 
@@ -334,79 +104,141 @@ pip install -r requirements.txt
 cp .env.example .env
 ```
 
-Add the required API credentials and model identifiers to `.env`.
+Open `.env` and fill in your credentials:
 
-Example configuration:
+```
+TYPESAFE_API_KEY=your-typesafe-api-key
+JEV_MODEL=jev-latest
+JEV_SUPPORT_THRESHOLD=0.5
 
-```text
-TYPESAFE_API_KEY=<your-jev-api-key>
-JEV_MODEL=<jev-model>
-
-GROQ_API_KEY=<your-groq-api-key>
-GROQ_MODEL=<groq-model>
+GROQ_API_KEY=your-groq-api-key
+GROQ_MODEL=your-groq-model
 ```
 
-**Never commit API keys or other secrets to GitHub.**
+`JEV_SUPPORT_THRESHOLD` is optional. When not set, all Jev results receive an `uncertain` verdict. See `app/evaluation/judge_normalizer.py` for the full threshold methodology.
 
 ---
 
-## 🧪 Running Tests
+## Running evaluations
 
-Run the complete test suite:
+### Jev evaluation
 
 ```bash
-python -m pytest -v
+python -m app.cli --dataset data/evaluation_dataset.json --judge jev
 ```
 
-Run a specific test module:
+### Groq evaluation
 
 ```bash
-python -m pytest tests/test_metrics.py -v
+python -m app.cli --dataset data/evaluation_dataset.json --judge groq
 ```
 
-The project follows an incremental test-driven development approach, with tests covering:
+### Export a JSON report
 
-* Dataset validation
-* Judge clients
-* Result normalization
-* Prompt generation
-* Single-example evaluation
-* Batch evaluation
-* Error handling
-* Evaluation metrics
-* Judge comparison
+```bash
+python -m app.cli \
+  --dataset data/evaluation_dataset.json \
+  --judge jev \
+  --output results/jev_report.json \
+  --format json
+```
 
----
+### Export a CSV report
 
+```bash
+python -m app.cli \
+  --dataset data/evaluation_dataset.json \
+  --judge groq \
+  --output results/groq_report.csv \
+  --format csv
+```
 
-## 🤝 Learning & Experimentation
+### Multi-judge comparison
 
-JevJudge is an ongoing hands-on exploration of:
-
-* LLM-as-a-Judge systems
-* Structured AI decision-making
-* RAG evaluation
-* Hallucination detection
-* Evaluation metrics
-* Reliable AI engineering
-* Reproducible benchmarking
-
-The project is intentionally being developed incrementally, with each capability backed by automated tests.
-
-Future experiments will focus on comparing different judge approaches across the same evaluation dataset and documenting the resulting observations.
-
-This repository is an ongoing hands-on exploration of structured AI decision-making, LLM evaluation, and reliable AI engineering.
-
-The implementation, experiments, and findings will be documented as the project progresses.
-
-Contributions, feedback, and discussions are welcome.
+```bash
+python -m app.cli \
+  --dataset data/evaluation_dataset.json \
+  --judge both \
+  --output results/comparison.json \
+  --format json
+```
 
 ---
 
-## 📌 Project Philosophy
+## Running tests
 
-The project focuses on **measurement rather than assumptions**.
+```bash
+python -m pytest -q
+```
 
-Instead of assuming that one evaluation approach is better than another, JevJudge aims to create a reproducible framework where different judges can be evaluated against the same dataset, ground truth, and metrics.
+All tests use mocking where live API calls would be needed. No test makes a real network request.
 
-This makes the project useful not only as a Jev experiment, but also as a foundation for exploring broader LLM evaluation techniques.
+---
+
+## Evaluation dataset
+
+The dataset contains 10 labelled RAG evaluation examples across four categories:
+
+| Category | Count | Description |
+|---|---|---|
+| `fully_supported` | 2 | Answer matches context |
+| `contradiction` | 4 | Answer directly contradicts context |
+| `unsupported_claim` | 3 | Answer adds claims not in context |
+| `partially_supported` | 1 | Part of the answer is supported, part is not |
+
+Each example has two independent ground truth labels: `contradiction` and `unsupported_claim`.
+
+---
+
+## Evaluation findings and judge comparison
+
+Running both judges against the evaluation dataset highlights key architectural and behavioral differences between a continuous signal judge (Jev) and an LLM prompt-based judge (Groq).
+
+### Benchmark results
+
+| Example ID | Category | Ground truth | Jev verdict (threshold 0.5) | Groq verdict |
+|---|---|---|---|---|
+| rag_001 | fully_supported | Supported | supported (noul: 0.98) | supported |
+| rag_002 | contradiction | Contradiction + Unsupported | insufficient_evidence (noul: 0.02) | contradicted |
+| rag_003 | unsupported_claim | Unsupported claim | insufficient_evidence (noul: 0.07) | insufficient_evidence |
+| rag_004 | partially_supported | Unsupported claim | insufficient_evidence (noul: 0.22) | supported |
+| rag_005 | contradiction | Contradiction + Unsupported | insufficient_evidence (noul: 0.02) | contradicted |
+| rag_006 | unsupported_claim | Unsupported claim | insufficient_evidence (noul: 0.39) | insufficient_evidence |
+| rag_007 | fully_supported | Supported | supported (noul: 0.97) | supported |
+| rag_008 | contradiction | Contradiction + Unsupported | insufficient_evidence (noul: 0.02) | contradicted |
+| rag_009 | unsupported_claim | Unsupported claim | insufficient_evidence (noul: 0.06) | insufficient_evidence |
+| rag_010 | contradiction | Contradiction + Unsupported | insufficient_evidence (noul: 0.02) | contradicted |
+
+### Key observations
+
+1. **Contradiction detection**
+   - Groq accurately identifies direct contradictions (`contradicted` on rag_002, rag_005, rag_008, rag_010).
+   - Jev's `hq_supported` question assesses evidence support rather than contradiction. Consequently, contradicted answers produce low support scores (`noul` <= 0.02) and map to `insufficient_evidence` under threshold rules.
+
+2. **Partially supported statements**
+   - On rag_004 (where valid delivery timeframe is mixed with an unsupported express delivery claim), Groq focused on the supported clause and yielded `supported`.
+   - Jev registered the unsupported addition via a reduced support score (`noul: 0.22`), correctly classifying it as `insufficient_evidence`.
+
+3. **Complementary evaluation roles**
+   - Jev excels at continuous support measurement without prompt drift.
+   - Groq provides qualitative categorical distinctions between contradictions and missing facts.
+
+---
+
+## Tech stack
+
+| Component | Technology |
+|---|---|
+| Language | Python |
+| Data validation | Pydantic |
+| Configuration | Pydantic Settings |
+| Jev client | httpx |
+| Groq client | Groq Python SDK |
+| Testing | pytest |
+
+---
+
+## Docs
+
+- [Code Walkthrough](docs/JevJudge_Code_Walkthrough.md) — module-by-module explanation of the codebase
+- [Development Roadmap](docs/JevJudge_Development_Roadmap.md) — the development plan used to build this project
